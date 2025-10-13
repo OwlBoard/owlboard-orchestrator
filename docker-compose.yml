@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./API_Gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:8001
+      - COMMENTS_SERVICE_URL=http://comments-service:8002
+    depends_on:
+      - user-service
+      - comments-service
+
+  user-service:
+    build:
+      context: https://github.com/OwlBoard/User_Service.git 
+    expose:
+      - 8001
+    command: uvicorn app:app --host 0.0.0.0 --port 8001
+
+  comments-service:
+    build:
+      context: https://github.com/OwlBoard/Comments_Service.git 
+    expose:
+      - 8002
+    command: uvicorn app:app --host 0.0.0.0 --port 8002
+
+  frontend:
+    build:
+      context: https://github.com/OwlBoard/Desktop_Front_End.git 
+    ports:
+      - "3000:80"
