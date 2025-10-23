@@ -1,35 +1,16 @@
-# OwlBoard - Orchestrator & API Gateway
+# API Gateway (Orquestador)
 
-This repository serves as the central control plane for the entire OwlBoard application. It contains the primary **API Gateway** and the master `docker-compose.yml` file responsible for orchestrating the deployment of all distributed microservices.
+Este servicio actúa como el único punto de entrada (API Gateway) para todos los microservicios de backend, usando Nginx como reverse proxy.
 
-The API Gateway, built with **FastAPI**, acts as the single entry point for all client requests from the React frontend. Its main responsibilities are:
+## Propósito
 
-  - **Request Routing**: Intelligently forwards incoming requests to the appropriate backend service (`User_Service`, `Comments_Service`, `Canvas_Service`).
-  - **Centralized Logic**: Provides a single place to manage cross-cutting concerns like authentication, rate limiting, and CORS.
-  - **Decoupling**: Decouples the client application from the internal architecture of the backend services, improving security and maintainability.
+-   **Centralización:** Enruta el tráfico a los servicios correctos (`user_service`, `comments_service`, `canvas_service`, `chat_service`).
+-   **Abstracción:** Oculta la topología de la red interna. Los frontends solo necesitan conocer esta URL.
+-   **Simplificación:** Unifica la API bajo un prefijo `/api`.
 
-## How It Works
+## Rutas
 
-This repository uses a multi-repo orchestration strategy. The `docker-compose.yml` file is configured to:
-
-1.  Build the API Gateway from the local directory.
-2.  Clone and build the other microservices (`Desktop_Front_End`, `User_Service`, etc.) directly from their respective Git repositories.
-3.  Launch the entire containerized application stack on a unified Docker network.
-
-## Getting Started
-
-To run the entire OwlBoard application, clone this repository and use Docker Compose.
-
-```bash
-# Clone the orchestrator repository
-git clone https://github.com/OwlBoard/owlboard-orchestrator.git
-cd owlboard-orchestrator
-
-# Build and run all services
-docker-compose up --build
-```
-
-The application will be available at the following endpoints:
-
-  - **Frontend Application**: `http://localhost:3000`
-  - **API Gateway**: `http://localhost:8000`
+-   `http://<host>/api/users/` -> `user_service`
+-   `http://<host>/api/comments/` -> `comments_service`
+-   `http://<host>/api/canvas/` -> `canvas_service`
+-   `http://<host>/api/chat/` -> `chat_service`
