@@ -2,32 +2,146 @@ version: '3.8'
 
 services:
   api-gateway:
-    build: ./API_Gateway
+    build: .
     ports:
       - "8000:8000"
     environment:
       - USER_SERVICE_URL=http://user-service:8001
       - COMMENTS_SERVICE_URL=http://comments-service:8002
+      - CHAT_SERVICE_URL=http://chat-service:8003
+      - CANVAS_SERVICE_URL=http://canvas-service:8080
     depends_on:
       - user-service
       - comments-service
+      - chat-service
+      - canvas-service
 
   user-service:
     build:
-      context: https://github.com/OwlBoard/User_Service.git 
+      context: ../User_Service
     expose:
       - 8001
+    environment:
+      - DATABASE_URL=mysql+pymysql://user:password@mysql-db:3306/user_db
+    depends_on:
+      - mysql-db
     command: uvicorn app:app --host 0.0.0.0 --port 8001
 
   comments-service:
     build:
-      context: https://github.com/OwlBoard/Comments_Service.git 
+      context: ../Comments_Service
     expose:
       - 8002
+    environment:
+      - DATABASE_URL=mongodb://user:password@mongo-db:27017/comments_db?authSource=admin
+    depends_on:
+      - mongo-db
     command: uvicorn app:app --host 0.0.0.0 --port 8002
+
+  chat-service:
+    build:
+      context: ../Chat_Service
+    expose:
+      - 8003
+    environment:
+      - REDIS_URL=redis://:password@redis-db:6379/0
+    depends_on:
+      redis-db:
+        condition: service_healthy
+    command: uvicorn app:app --host 0.0.0.0 --port 8003
+
+  redis-db:
+    image: redis:7-alpine
+    command: redis-server --requirepass password
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  canvas-service:
+    build:
+      context: ../Canvas_Service
+    expose:
+      - 8080
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres-db:5432/canvas_db?sslmode=disable
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  postgres-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=canvas_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../Canvas_Service/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d canvas_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql-db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=user_db
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  mongo-db:
+    image: mongo:7
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=comments_db
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
 
   frontend:
     build:
-      context: https://github.com/OwlBoard/Desktop_Front_End.git 
+      context: ../Desktop_Front_End
     ports:
-      - "3000:80"
+      - "3000:3000"
+
+volumes:
+  mysql-data:
+  mongo-data:
+  postgres-data:
+  rabbitmq-data:
+  redis-data:
